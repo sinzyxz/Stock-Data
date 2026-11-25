@@ -4,4 +4,5 @@ __pycache__/
 *.pyc
 data/raw/
 data/processed/
+src/data/
 .pytest_cache/

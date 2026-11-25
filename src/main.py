@@ -1,24 +1,45 @@
-import pandas as pd
 
-# สร้างข้อมูลหุ้นตัวอย่าง
-data = {
-    "symbol": ["NVDA", "AMD", "AAPL", "MSFT", "GOOGL"],
-    "open": [180.00, 200.00, 250.00, 500.00, 300.00],
-    "high": [185.00, 205.00, 255.00, 510.00, 305.00],
-    "low": [178.00, 198.00, 247.00, 495.00, 297.00],
-    "close": [183.00, 202.00, 252.00, 505.00, 302.00],
-    "volume": [1000000, 800000, 900000, 700000, 600000]
-}
+import json
+from pathlib import Path
 
-# แปลงข้อมูลเป็น DataFrame
-df = pd.DataFrame(data)
+from ingestion.fmp_client import fetch_daily_prices
 
-# แสดงข้อมูล
-print("US Stock Market Data")
-print(df)
 
-# คำนวณส่วนต่างราคาเปิดและปิด
-df["price_change"] = df["close"] - df["open"]
+# กำหนดหุ้นที่ต้องการทดลอง
+symbol = "NVDA"
 
-print("\nPrice Change")
-print(df[["symbol", "price_change"]])
+# กำหนดช่วงเวลาที่ต้องการ
+start_date = "2025-11-18"
+end_date = "2026-11-18"
+
+
+# เรียกฟังก์ชันเพื่อดึงข้อมูลจาก FMP
+data = fetch_daily_prices(
+    symbol=symbol,
+    start_date=start_date,
+    end_date=end_date
+)
+
+# ตรวจสอบว่ามีข้อมูลหรือไม่
+if not data:
+    raise ValueError(f"ไม่พบข้อมูลหุ้น {symbol}")
+
+# สร้างโฟลเดอร์สำหรับเก็บ Raw Data
+raw_dir = Path("data/raw/fmp")
+raw_dir.mkdir(parents=True, exist_ok=True)
+
+# สร้างชื่อไฟล์
+file_path = raw_dir / f"{symbol}_{start_date}_{end_date}.json"
+
+# บันทึก JSON ลงไฟล์
+with open(file_path, "w", encoding="utf-8") as file:
+    json.dump(data, file, indent=4, ensure_ascii=False)
+
+# แสดงผลการทำงาน
+print("========== FMP DATA INGESTION ==========")
+print(f"Symbol: {symbol}")
+print(f"Total Records: {len(data)}")
+print(f"Saved File: {file_path}")
+
+print("\nFirst Record:")
+print(json.dumps(data[0], indent=4))
