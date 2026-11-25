@@ -1,81 +1,78 @@
-# Stock Data Pipeline & Support/Resistance Zones
+# Stock Data Pipeline และการหาโซนแนวรับ–แนวต้าน
 
-A Python data engineering and market analysis project that collects historical stock prices from Financial Modeling Prep (FMP), transforms daily and optional intraday data into multiple timeframes, validates the resulting bars, loads them into PostgreSQL, and calculates support/resistance zones.
+โปรเจกต์ Python สำหรับดึงข้อมูลราคาหุ้นรายวันจาก Financial Modeling Prep (FMP) ตรวจคุณภาพข้อมูล จัดเก็บลง PostgreSQL และคำนวณโซนแนวรับ–แนวต้านจากราคาในอดีต
 
-> This repository is an educational and portfolio project. Its analytical output is not investment advice.
+> โปรเจกต์นี้ทำเพื่อการเรียนรู้และเป็นผลงาน portfolio ผลวิเคราะห์ไม่ใช่คำแนะนำในการลงทุน
 
-## What it does
+## โปรเจกต์ทำอะไรบ้าง
 
-- Ingests daily OHLCV history for a configurable list of US-listed symbols using the FMP Historical Price EOD Full endpoint.
-- Saves the API response as raw JSON before transformation.
-- Builds daily, weekly, monthly, quarterly, half-yearly, and yearly bars. If intraday files are available, it also builds 1-hour and 4-hour bars.
-- Runs data quality checks on CSV output and on data loaded in PostgreSQL.
-- Loads bars into PostgreSQL using an upsert key of `(symbol, timeframe, ts)`, so reloading a bar updates it instead of inserting a duplicate.
-- Finds support/resistance zones from completed bars, combines overlapping zones across timeframes, and prints possible entry signals.
-- Writes per-step pipeline status and timestamps to a JSONL run log.
+1. ดึงข้อมูลราคาเปิด/สูงสุด/ต่ำสุด/ปิด และปริมาณซื้อขายรายวันจาก FMP
+2. เก็บข้อมูลดิบเป็นไฟล์ JSON
+3. ทำความสะอาดและสร้างแท่งราคาในหลายช่วงเวลา ได้แก่ รายวัน รายสัปดาห์ รายเดือน รายไตรมาส ครึ่งปี และรายปี
+4. ตรวจคุณภาพข้อมูลก่อนและหลังโหลดเข้า PostgreSQL
+5. โหลดข้อมูลลง PostgreSQL โดยใช้การ upsert: ถ้าพบหุ้น ช่วงเวลา และวันที่เดิม จะอัปเดตแถวเดิมแทนการเพิ่มซ้ำ
+6. คำนวณโซนแนวรับ–แนวต้าน แล้วบันทึกผลลง PostgreSQL
 
-## Pipeline
+**ปัจจุบันโปรเจกต์รองรับการทำงานกับข้อมูลรายวันและช่วงเวลาที่สร้างต่อจากข้อมูลรายวันเท่านั้น ยังไม่รองรับการใช้งานข้อมูล 1H/4H** เนื่องจากข้อจำกัดสิทธิ์และจำนวนข้อมูลของ FMP รวมถึงหุ้นบางตัวไม่มีข้อมูล intraday ที่ endpoint ส่งให้ครบ จึงไม่ควรใช้ `--with-intraday` ในการรันปกติ
+
+## ภาพรวม pipeline
 
 ```mermaid
 flowchart LR
-    A[FMP API] --> B[Raw JSON]
-    B --> C[Build OHLCV bars]
-    C --> D[Quality checks: CSV]
-    D --> E[PostgreSQL: price_bars]
-    E --> F[Quality checks: database]
-    F --> G[Support/resistance analysis]
-    G --> H[PostgreSQL: sr_zones]
+    A[FMP: ราคาหุ้นรายวัน] --> B[ไฟล์ JSON ดิบ]
+    B --> C[เตรียมข้อมูลและสร้างแท่งราคา]
+    C --> D[ตรวจคุณภาพไฟล์ CSV]
+    D --> E[โหลดเข้า PostgreSQL]
+    E --> F[ตรวจคุณภาพในฐานข้อมูล]
+    F --> G[คำนวณแนวรับ–แนวต้าน]
+    G --> H[ตาราง sr_zones]
 ```
 
-The normal run skips intraday ingestion. Pass `--with-intraday` to request 1H/4H data; access to those FMP endpoints depends on the API plan.
-
-## Tech stack
+## เครื่องมือที่ใช้
 
 - Python 3.12
-- pandas and NumPy
+- pandas และ NumPy
 - PostgreSQL 17
-- psycopg2
-- Financial Modeling Prep API
-- pytest
-- GitHub Actions
+- FMP API
+- pytest และ GitHub Actions
 
-## Repository layout
+## โครงสร้างไฟล์
 
 ```text
 .
-├── .github/workflows/tests.yml  # CI workflow
-├── docker-compose.yml           # Local PostgreSQL service
-├── pytest.ini
-├── requirements.txt
+├── .github/workflows/tests.yml  # รันทดสอบอัตโนมัติบน GitHub
+├── docker-compose.yml           # ตั้งค่า PostgreSQL สำหรับเครื่อง local
+├── pytest.ini                   # ตั้งค่า pytest
+├── requirements.txt             # ไลบรารีที่ต้องติดตั้ง
 └── src/
-    ├── analysis/                # Support/resistance and signal logic
-    ├── ingestion/               # FMP client and daily/intraday ingestion
-    ├── load/                    # PostgreSQL loading and upsert
-    ├── quality/                 # Data quality report
-    ├── tests/                   # Unit and PostgreSQL integration tests
-    ├── transform/               # Input preparation and timeframe bars
-    └── main.py                  # Pipeline entry point
+    ├── analysis/                 # คำนวณแนวรับ–แนวต้านและสัญญาณ
+    ├── ingestion/                # ดึงข้อมูลจาก FMP
+    ├── load/                     # โหลดข้อมูลเข้า PostgreSQL
+    ├── quality/                  # ตรวจคุณภาพข้อมูล
+    ├── tests/                    # ทดสอบการแปลง ตรวจคุณภาพ และ upsert
+    ├── transform/                # เตรียมข้อมูลและสร้างแท่งราคา
+    └── main.py                   # จุดเริ่มต้นสำหรับรัน pipeline
 ```
 
-## Requirements
+## สิ่งที่ต้องเตรียม
 
 - Python 3.12
-- Docker Desktop or another Docker Compose installation
-- An FMP API key with access to the historical price endpoint
+- Docker Desktop หรือ Docker ที่ใช้ Docker Compose ได้
+- FMP API key ที่มีสิทธิ์เรียก Historical Price EOD Full
 - Git
 
-## Setup
+## วิธีติดตั้ง
 
-### 1. Clone the repository
+### 1. ดาวน์โหลดโปรเจกต์
+
+เปิด PowerShell แล้วรัน:
 
 ```powershell
 git clone https://github.com/sinzyxz/Stock-Data.git
 cd Stock-Data
 ```
 
-### 2. Create a virtual environment and install dependencies
-
-PowerShell:
+### 2. สร้าง virtual environment และติดตั้งไลบรารี
 
 ```powershell
 python -m venv .venv
@@ -84,7 +81,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-macOS/Linux:
+บน macOS/Linux ใช้:
 
 ```bash
 python3.12 -m venv .venv
@@ -93,12 +90,12 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 3. Configure credentials
+### 3. ตั้งค่า API key และ PostgreSQL
 
-Create a `.env` file in the repository root. Do not commit this file.
+สร้างไฟล์ชื่อ `.env` ไว้ที่โฟลเดอร์หลักของโปรเจกต์ แล้วใส่ค่าของตัวเอง:
 
 ```dotenv
-FMP_API_KEY=replace_with_your_fmp_api_key
+FMP_API_KEY=ใส่_api_key_ของคุณ
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5433
 POSTGRES_DB=stock_analysis
@@ -106,126 +103,113 @@ POSTGRES_USER=stock_user
 POSTGRES_PASSWORD=admin
 ```
 
-The PostgreSQL port is `5433` on the host because Docker Compose maps host port `5433` to container port `5432`. Change the environment values if your local database uses different credentials or ports.
+อย่า commit หรือ push ไฟล์ `.env` ขึ้น GitHub
 
-### 4. Start PostgreSQL
+Docker Compose เปิด PostgreSQL ที่พอร์ต `5433` บนเครื่อง และส่งต่อไปยังพอร์ต `5432` ใน container หากใช้พอร์ตหรือรหัสผ่านอื่น ให้แก้ค่าใน `.env` ให้ตรงกัน
 
-Run this from the repository root:
+### 4. เปิด PostgreSQL
+
+รันจากโฟลเดอร์หลักของโปรเจกต์:
 
 ```powershell
 docker compose up -d postgres
 ```
 
-The database data persists in the Compose volume `postgres_data`.
+ข้อมูลในฐานข้อมูลจะเก็บใน Docker volume ชื่อ `postgres_data`
 
-## Run the pipeline
+## วิธีรัน pipeline
 
-The pipeline uses paths relative to its current directory. Run it from `src/`:
+ก่อนรัน ให้เปลี่ยนไปที่โฟลเดอร์ `src`:
 
 ```powershell
 Set-Location src
 python main.py
 ```
 
-The default run executes these steps in order:
+คำสั่งนี้รันตามลำดับ:
 
-1. `daily` — fetch daily prices and save raw JSON.
-2. `build` — prepare and create bars for each available timeframe.
-3. `quality_files` — validate processed CSV files and write a quality report.
-4. `load` — upsert bars into PostgreSQL.
-5. `quality_db` — validate bars from PostgreSQL.
-6. `zones` — calculate zones and print any matching entry signals.
+1. `daily` — ดึงราคาหุ้นรายวันจาก FMP และบันทึก JSON ดิบ
+2. `build` — เตรียมข้อมูลและสร้างแท่งราคารายวัน รายสัปดาห์ รายเดือน รายไตรมาส ครึ่งปี และรายปี
+3. `quality_files` — ตรวจข้อมูลใน CSV และเขียนรายงานคุณภาพ
+4. `load` — โหลดข้อมูลเข้า PostgreSQL
+5. `quality_db` — ตรวจข้อมูลที่โหลดใน PostgreSQL
+6. `zones` — คำนวณและบันทึกโซนแนวรับ–แนวต้าน พร้อมพิมพ์สัญญาณที่เข้าเงื่อนไข
 
-If a required daily symbol fails to download, ingestion raises an error and the pipeline stops before building bars. Each completed or failed step is recorded in `src/logs/pipeline_runs.jsonl` when running from `src/`.
+ถ้าดึงหุ้นที่กำหนดไว้ไม่สำเร็จ ขั้นตอน ingestion จะแจ้ง error และหยุดก่อนสร้าง bars เพื่อป้องกันการนำไฟล์เก่ามาใช้ต่อ
 
-### Run selected steps
-
-Run only the daily ingestion:
+ตัวอย่างรันเฉพาะบางขั้น:
 
 ```powershell
+# ดึงข้อมูลรายวันเท่านั้น
 python main.py --steps daily
-```
 
-Build bars and check the CSV output:
-
-```powershell
+# สร้าง bars แล้วตรวจไฟล์ CSV
 python main.py --steps build quality_files
-```
 
-Load existing CSV bars, check the database, and calculate zones:
-
-```powershell
+# โหลดไฟล์ที่มีอยู่ ตรวจฐานข้อมูล แล้วคำนวณ zones
 python main.py --steps load quality_db zones
 ```
 
-Run with optional intraday ingestion:
+รายชื่อหุ้นและช่วงวันที่ตั้งค่าไว้ใน `src/ingestion/ingest_prices.py`
 
-```powershell
-python main.py --with-intraday
-```
+## การตรวจคุณภาพข้อมูล
 
-Symbols and date ranges are configured in `src/ingestion/ingest_prices.py` and `src/ingestion/ingest_intraday.py`.
+รายงานจะแยกตามหุ้นและช่วงเวลา โดยตรวจจำนวนแท่ง ช่วงวันที่ ข้อมูล OHLC ว่างหรือผิดตรรกะ ราคาที่ไม่เป็นบวก timestamp ซ้ำ volume ติดลบ ช่วงวันที่ห่างผิดปกติ และราคาที่เปลี่ยนแปลงมาก
 
-## Data quality checks
+สถานะในรายงาน:
 
-The quality report groups data by symbol and timeframe. It includes the row count, completed-bar count, date range, null OHLC values, invalid OHLC relationships, non-positive prices, duplicate timestamps, zero-volume rows, large date gaps, large price changes, and whether there are enough completed bars for support/resistance analysis.
+- `OK` — ไม่พบข้อผิดพลาดหรือช่วงข้อมูลที่น่าสงสัยตามกฎที่ตั้งไว้
+- `CHECK` — พบช่วงวันที่ห่างหรือราคากระโดด ควรตรวจสอบเพิ่มเติม
+- `ERROR` — พบปัญหาข้อมูล เช่น OHLC ว่าง/ผิดตรรกะ ราคาไม่เป็นบวก timestamp ซ้ำ หรือ volume ติดลบ
 
-Statuses:
+ไฟล์รายงานชื่อ `data/quality_report.csv` อยู่ใต้ working directory ที่ใช้รันโปรแกรม ปัจจุบันรายงานจะแจ้งปัญหา แต่สถานะในรายงานยังไม่ได้สั่งให้ pipeline หยุดเอง
 
-- `OK` — no hard errors or configured gap/jump warnings.
-- `CHECK` — unusual date gaps or price changes need review.
-- `ERROR` — hard data errors such as null OHLC, invalid OHLC, non-positive prices, duplicate timestamps, or negative volume.
-
-The CSV report is written to `data/quality_report.csv`, relative to the pipeline working directory. Quality status is reported for review; the quality report itself currently does not stop the pipeline.
-
-## PostgreSQL tables
+## ตารางใน PostgreSQL
 
 ### `price_bars`
 
-Stores OHLCV bars by symbol and timeframe.
+เก็บแท่งราคา OHLCV โดยมีคีย์หลัก `(symbol, timeframe, ts)`
 
-| Column | Meaning |
+| คอลัมน์ | ความหมาย |
 | --- | --- |
-| `symbol` | Stock ticker |
-| `timeframe` | `1H`, `4H`, `D`, `W`, `M`, `3M`, `6M`, or `12M` |
-| `ts` | Timestamp/date of the bar |
-| `open`, `high`, `low`, `close` | OHLC prices |
-| `volume` | Trading volume |
-| `is_complete` | Whether the bar is considered complete |
-
-Primary key: `(symbol, timeframe, ts)`.
+| `symbol` | รหัสหุ้น |
+| `timeframe` | ช่วงเวลา เช่น `D`, `W`, `M`, `3M`, `6M`, `12M` |
+| `ts` | วันที่ของแท่งราคา |
+| `open`, `high`, `low`, `close` | ราคาเปิด สูงสุด ต่ำสุด และปิด |
+| `volume` | ปริมาณซื้อขาย |
+| `is_complete` | ระบุว่าแท่งราคาถูกมองว่าปิดสมบูรณ์แล้วหรือไม่ |
 
 ### `sr_zones`
 
-Stores calculated zones, including zone type, lower/upper bounds, center, score, timeframes contributing to the zone, touch counts, distance from the reference price, and volume-density fields.
+เก็บโซนแนวรับ–แนวต้าน เช่น ประเภทโซน ขอบล่าง/ขอบบน ราคากลาง คะแนน ช่วงเวลาที่พบโซน จำนวนครั้งที่ราคาแตะ และระยะห่างจากราคาปัจจุบัน
 
-## Support/resistance method
+## วิธีคำนวณแนวรับ–แนวต้าน
 
-For each timeframe, the analyzer:
+ระบบใช้แท่งราคาที่ปิดแล้วในแต่ละช่วงเวลา โดยย่อคือ:
 
-1. Uses completed bars and calculates ATR to scale price bins to current volatility.
-2. Counts repeated touches using OHLC price levels.
-3. Builds candidate zones from nearby price bins and requires a minimum number of touches.
-4. Estimates volume density inside each zone and uses it to adjust the zone score.
-5. Merges overlapping zones across timeframes, giving larger timeframes higher weights.
-6. Labels zones below the latest daily close as support and zones above it as resistance.
+1. ใช้ ATR ปรับความกว้างของช่วงราคาให้สัมพันธ์กับความผันผวน
+2. นับระดับราคาจาก open, high, low และ close ที่เกิดซ้ำ
+3. เลือกบริเวณที่มีการแตะหลายครั้งเป็นโซนที่มีโอกาสสำคัญ
+4. ใช้ความหนาแน่นของ volume ช่วยปรับคะแนน
+5. รวมโซนที่ทับซ้อนกันระหว่างช่วงเวลา และให้น้ำหนักช่วงเวลาที่ยาวกว่าสูงกว่า
+6. ระบุโซนใต้ราคาปิดรายวันล่าสุดเป็นแนวรับ และโซนเหนือราคาเป็นแนวต้าน
 
-The entry-signal routine checks for a rebound pattern at a support zone after a decline. It prints signals to the terminal; it does not place trades.
+ระบบจะแสดงสัญญาณเมื่อพบรูปแบบราคาดีดจากโซนแนวรับตามเงื่อนไขที่เขียนไว้ แต่ไม่ได้ส่งคำสั่งซื้อขาย
 
-## Tests and continuous integration
+## ทดสอบและ GitHub Actions
 
-Run tests locally from the repository root:
+รัน tests ในเครื่องจากโฟลเดอร์หลัก:
 
 ```powershell
 python -m pytest -q
 ```
 
-The tests cover bar preparation, quality-check behavior, and PostgreSQL upsert behavior. The GitHub Actions workflow in `.github/workflows/tests.yml` runs them on every push and pull request. Its PostgreSQL service is temporary and used only for the integration test.
+tests ครอบคลุมการเตรียมแท่งราคา กฎตรวจคุณภาพ และการ upsert เข้า PostgreSQL ส่วน GitHub Actions จะติดตั้ง dependencies เปิด PostgreSQL ชั่วคราว แล้วรัน tests อัตโนมัติเมื่อมีการ push หรือ Pull Request
 
-## Current limitations
+## ข้อจำกัดปัจจุบัน
 
-- FMP endpoint access, symbol coverage, rate limits, and historical availability depend on the API plan.
-- The daily ingestion requests `1900-01-01` through the current date, but it does not currently split this request into smaller date chunks. FMP documents a maximum of 5,000 records per request, so very long histories may require chunked ingestion to guarantee full coverage.
-- Intraday ingestion is optional and may require an FMP plan that supports the requested endpoints.
-- Daily bars are currently marked complete by the bar builder. For analysis during market hours, review the latest daily bar before relying on results.
-- Quality reports identify issues but currently do not fail the pipeline based on report status.
+- โปรเจกต์เน้นข้อมูลรายวัน ยังไม่รองรับการใช้งาน 1H/4H เพราะ FMP จำกัดสิทธิ์และจำนวนข้อมูล และหุ้นบางตัวไม่มีข้อมูล intraday ที่ endpoint ใช้ได้
+- การเข้าถึงข้อมูลและช่วงย้อนหลังขึ้นอยู่กับแพ็กเกจ FMP และความครอบคลุมของแต่ละหุ้น
+- โค้ดตั้งช่วงขอข้อมูลรายวันตั้งแต่ `1900-01-01` ถึงวันที่รัน แต่ยังไม่ได้แบ่งคำขอเป็นช่วงย่อย FMP ระบุเพดาน 5,000 แถวต่อคำขอ ดังนั้นยังรับประกันไม่ได้ว่าจะได้ประวัติครบทั้งหมดของหุ้นที่มีข้อมูลเกินเพดาน
+- daily bar ถูกกำหนดว่า complete ในขั้น build ควรรันหลังตลาดปิด หากต้องการใช้ข้อมูลรายวันล่าสุด
+- รายงาน quality แสดงปัญหา แต่ยังไม่ได้หยุด pipeline ตามสถานะ `ERROR`
