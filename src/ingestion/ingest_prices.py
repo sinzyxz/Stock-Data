@@ -6,7 +6,7 @@ from ingestion.fmp_client import fetch_daily_prices
 # รายชื่อหุ้นที่ต้องการดึง (เพิ่มได้ตามต้องการ)
 SYMBOLS = ["AAPL", "MSFT", "NVDA"]
 
-START_DATE = "2025-11-18"
+START_DATE = "2020-11-18"
 END_DATE = "2026-11-18"
 
 RAW_DIR = Path("data/raw/fmp")
