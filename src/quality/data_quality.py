@@ -37,6 +37,7 @@ def profile(df: pd.DataFrame, tf: str):
     nonpos = (ohlc <= 0).any(axis=1)
     zero_vol = df["volume"].fillna(0) == 0
     dup_ts = df["ts"].duplicated(keep=False)
+    negative_volume = df["volume"] < 0
 
     gaps = pd.Series(False, index=df.index)
     jumps = pd.Series(False, index=df.index)
@@ -64,8 +65,9 @@ def profile(df: pd.DataFrame, tf: str):
         "zero_vol": int(zero_vol.sum()), "dup_ts": int(dup_ts.sum()),
         "gaps": int(gaps.sum()), "jumps": int(jumps.sum()),
         "sr_ready": sr_ready,
+        "negative_volume": int(negative_volume.sum()),
     }
-    hard = ["null_ohlc", "bad_ohlc", "nonpos", "dup_ts"]
+    hard = ["null_ohlc", "bad_ohlc", "nonpos", "dup_ts","negative_volume"]
     soft = ["gaps", "jumps"]
     summary["status"] = ("ERROR" if any(summary[k] for k in hard)
                          else "CHECK" if any(summary[k] for k in soft) else "OK")
