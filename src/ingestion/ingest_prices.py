@@ -4,7 +4,7 @@ from datetime import date
 from ingestion.fmp_client import fetch_daily_prices
 
 # รายชื่อหุ้นที่ต้องการดึง (เพิ่มได้ตามต้องการ)
-SYMBOLS = ["AAPL", "MSFT", "NVDA","AMD","TSM","GOOGL","META"]
+SYMBOLS = ["AAPL", "MSFT", "NVDA","AMD","TSM","GOOGL","META","MU"]
 START_DATE = "1900-01-01"  
 END_DATE = date.today().isoformat()
 
@@ -27,12 +27,11 @@ def main():
 
             print(f"[OK]   {symbol}: {len(data)} records -> {file_path}")
         except Exception as e:
-            # หุ้นตัวใดตัวหนึ่งพัง ไม่ให้ทั้ง pipeline หยุด
             print(f"[FAIL] {symbol}: {e}")
             failed.append(symbol)
 
     if failed:
-        print(f"\nล้มเหลว {len(failed)} ตัว: {failed}")
+        raise RuntimeError(f"ดึงข้อมูลไม่สำเร็จ: {failed}")
 
 
 if __name__ == "__main__":
