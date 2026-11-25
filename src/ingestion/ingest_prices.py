@@ -1,13 +1,12 @@
 import json
 from pathlib import Path
-
+from datetime import date
 from ingestion.fmp_client import fetch_daily_prices
 
 # รายชื่อหุ้นที่ต้องการดึง (เพิ่มได้ตามต้องการ)
-SYMBOLS = ["AAPL", "MSFT", "NVDA"]
-
-START_DATE = "2020-11-18"
-END_DATE = "2026-11-18"
+SYMBOLS = ["AAPL", "MSFT", "NVDA","AMD","TSM","GOOGL","META"]
+START_DATE = "1900-01-01"  
+END_DATE = date.today().isoformat()
 
 RAW_DIR = Path("data/raw/fmp")
 

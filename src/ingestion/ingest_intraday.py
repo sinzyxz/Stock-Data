@@ -8,7 +8,7 @@ import requests
 
 from ingestion.fmp_client import API_KEY, BASE_URL
 
-SYMBOLS = ["AAPL", "MSFT", "NVDA"]
+SYMBOLS = ["AAPL", "MSFT", "NVDA","MU","SNDK"]
 INTERVALS = ["1hour", "4hour"]
 
 # ย้อนหลังได้แค่ไหนขึ้นกับแพ็กเกจ FMP ของคุณ ปรับตามต้องการ
