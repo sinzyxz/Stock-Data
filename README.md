@@ -41,6 +41,7 @@ flowchart LR
 ```text
 .
 ├── .github/workflows/tests.yml  # รันทดสอบอัตโนมัติบน GitHub
+├── .env.example                 # ตัวอย่างค่าตั้งต้นสำหรับ local
 ├── docker-compose.yml           # ตั้งค่า PostgreSQL สำหรับเครื่อง local
 ├── pytest.ini                   # ตั้งค่า pytest
 ├── requirements.txt             # ไลบรารีที่ต้องติดตั้ง
@@ -92,24 +93,40 @@ python -m pip install -r requirements.txt
 
 ### 3. ตั้งค่า API key และ PostgreSQL
 
-สร้างไฟล์ชื่อ `.env` ไว้ที่โฟลเดอร์หลักของโปรเจกต์ แล้วใส่ค่าของตัวเอง:
+คัดลอกไฟล์ตัวอย่างเป็น `.env` ที่โฟลเดอร์หลักของโปรเจกต์:
+
+บน PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+บน macOS/Linux:
+
+```bash
+cp .env.example .env
+```
+
+จากนั้นเปิด `.env` แล้วใส่ FMP API key ของตัวเอง:
 
 ```dotenv
-FMP_API_KEY=ใส่_api_key_ของคุณ
+FMP_API_KEY=your_fmp_api_key
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5433
 POSTGRES_DB=stock_analysis
 POSTGRES_USER=stock_user
-POSTGRES_PASSWORD=admin
+POSTGRES_PASSWORD=change_me_local_only
 ```
 
 อย่า commit หรือ push ไฟล์ `.env` ขึ้น GitHub
 
-Docker Compose เปิด PostgreSQL ที่พอร์ต `5433` บนเครื่อง และส่งต่อไปยังพอร์ต `5432` ใน container หากใช้พอร์ตหรือรหัสผ่านอื่น ให้แก้ค่าใน `.env` ให้ตรงกัน
+Docker Compose เปิด PostgreSQL ที่พอร์ต `5433` บนเครื่อง และส่งต่อไปยังพอร์ต `5432` ใน container โดยอ่าน user, password, database และ host port จาก `.env` ชุดเดียวกับแอป หากเปลี่ยนค่า ให้ใช้ค่าเดียวกันทั้งตอนรัน Compose และเชื่อมต่อจากแอป
+
+ถ้าเคยเปิด PostgreSQL ด้วย Docker Compose มาก่อน ค่าเริ่มต้นจะถูกเก็บอยู่ใน volume เดิม การแก้ `POSTGRES_PASSWORD` ใน `.env` ไม่เปลี่ยนรหัสผ่านของฐานข้อมูลที่สร้างไปแล้ว ต้องใช้ข้อมูลรับรองเดิมหรือเปลี่ยนรหัสผ่านภายใน PostgreSQL ก่อน
 
 ### 4. เปิด PostgreSQL
 
-รันจากโฟลเดอร์หลักของโปรเจกต์:
+รันจากโฟลเดอร์หลักของโปรเจกต์ โดยเปลี่ยน working directory เป็น `src` เพื่อให้ path ของข้อมูลตรงกับโครงสร้างปัจจุบัน:
 
 ```powershell
 docker compose up -d postgres
