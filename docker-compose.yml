@@ -2,14 +2,13 @@
 services:
   postgres:
     image: postgres:17
-    container_name: stock_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: stock_user
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: stock_analysis
+      POSTGRES_USER: ${POSTGRES_USER:-stock_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_local_only}
+      POSTGRES_DB: ${POSTGRES_DB:-stock_analysis}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
